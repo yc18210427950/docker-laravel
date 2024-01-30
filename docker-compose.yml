@@ -1,0 +1,75 @@
+version: "3"
+services:
+  laravel-nginx:
+    build:
+      context: ./services/nginx
+      args:
+        NGINX_VERSION: nginx:${NGINX_VERSION}
+        CONTAINER_PACKAGE_URL: ${CONTAINER_PACKAGE_URL}
+        NGINX_INSTALL_APPS: ${NGINX_INSTALL_APPS}
+    container_name: dnpm-nginx
+    ports:
+      - "${NGINX_HTTP_HOST_PORT}:80"
+      # - "${NGINX_HTTPS_HOST_PORT}:443"
+    volumes:
+      - ${SOURCE_DIR}:/www/:rw
+      - ${NGINX_SSL_CERTIFICATE_DIR}:/ssl:rw
+      - ${NGINX_CONFD_DIR}:/etc/nginx/conf.d/:rw
+      - ${NGINX_CONF_FILE}:/etc/nginx/nginx.conf:ro
+      - ${NGINX_FASTCGI_PHP_CONF}:/etc/nginx/fastcgi-php.conf:ro
+      - ${NGINX_FASTCGI_PARAMS}:/etc/nginx/fastcgi_params:ro
+      - ${NGINX_LOG_DIR}:/var/log/nginx/:rw
+    environment:
+      TZ: "$TZ"
+    restart: always
+
+  laravel-php82:
+    build:
+      context: ./services/php82
+      args:
+        PHP_VERSION: php:${PHP82_VERSION}-fpm-alpine
+        CONTAINER_PACKAGE_URL: ${CONTAINER_PACKAGE_URL}
+        COMPOSER_URL: ${COMPOSER_URL}
+        PHP_EXTENSIONS: ${PHP82_EXTENSIONS}
+        TZ: "$TZ"
+    container_name: laravel-php82
+    expose:
+      - 9501
+    volumes:
+      - ${SOURCE_DIR}:/www/:rw
+      - ${PHP82_PHP_CONF_FILE}:/usr/local/etc/php/php.ini:ro
+      - ${PHP82_FPM_CONF_FILE}:/usr/local/etc/php-fpm.d/www.conf:rw
+      - ${PHP82_LOG_DIR}:/var/log/php
+      - ${DATA_DIR}/composer:/tmp/composer
+    restart: always
+    cap_add:
+      - SYS_PTRACE
+
+  laravel-postgres:
+    image: postgres:latest
+    privileged: true
+    container_name: laravel-postgres
+    user: root
+    restart: always
+    # ports:
+    #   - 61053:5432
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_DB: laravel
+      POSTGRES_PASSWORD: root
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+
+  laravel-postgres-pgadmin4:
+    image: dpage/pgadmin4:latest
+    container_name: laravel-postgres-pgadmin4
+    user: root
+    environment:
+      PGADMIN_DEFAULT_EMAIL: 18210427950@qq.com
+      PGADMIN_DEFAULT_PASSWORD: 12345678
+    ports:
+      - 61053:80
+    volumes:
+      - ./data/pgadmin/storage:/var/lib/pgadmin/storage
+    restart: always
